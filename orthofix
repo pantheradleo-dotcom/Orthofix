@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrthoFix — Correcteur & Reformulateur</title>
+  <style>
+    :root {
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --ink: #111827;
+      --muted: #6b7280;
+      --accent: #1b3f8b;
+      --accent-light: #e5e7eb;
+      --soft: #dbe3f1;
+      --danger: #dc2626;
+      --warn: #ea580c;
+      --ok: #16a34a;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+      --radius: 14px;
+      --font: 'Segoe UI', Arial, Helvetica, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: var(--font); background: var(--bg); color: var(--ink); }
+
+    /* ── LAYOUT ── */
+    .app {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid #dde4ef;
+      box-shadow: 4px 0 20px rgba(15,23,42,.06);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+      overflow: hidden;
+    }
+    .sidebar-header {
+      flex-shrink: 0;
+      background: linear-gradient(135deg, #12295d 0%, #1e3a8a 100%);
+      color: #fff;
+      padding: 18px 20px 14px;
+    }
+    .sidebar-header h1 { font-size: 1rem; font-weight: 800; letter-spacing: .02em; }
+    .sidebar-header p { margin-top: 5px; font-size: .82rem; opacity: .88; }
+
+    .sidebar-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ── BTN ── */
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font: inherit;
+      font-size: .84rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .12s, opacity .12s, box-shadow .12s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.12); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #eef2ff; color: #1e3a8a; border: 1px solid #c7d2fe; }
+    .btn-light { background: #f8fafc; color: #334155; border: 1px solid #cbd5e1; }
+    .btn-full { width: 100%; justify-content: center; }
+
+    /* ── FIELDSET ── */
+    .fieldset {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .fieldset-legend {
+      font-size: .78rem;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      padding: 0 0 6px;
+      border-bottom: 1px solid #e5e7eb;
+      width: 100%;
+    }
+
+    /* ── FIELD ── */
+    .field { display: flex; flex-direction: column; gap: 5px; }
+    .field label {
+      font-size: .76rem;
+      font-weight: 700;
+      color: #334155;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    textarea, select {
+      width: 100%;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 9px;
+      background: #fff;
+      color: #0f172a;
+      padding: 9px 11px;
+      font: inherit;
+      font-size: .88rem;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(27,63,139,.12);
+    }
+    textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+
+    /* ── TONE PILLS ── */
+    .tone-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tone-btn {
+      padding: 6px 12px;
+      border-radius: 20px;
+      border: 1.5px solid #e5e7eb;
+      background: #f8fafc;
+      color: #64748b;
+      font-size: .78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .tone-btn.active {
+      border-color: var(--accent);
+      background: #e8eef8;
+      color: var(--accent);
+    }
+
+    /* ── SCREEN NOTE ── */
+    .screen-note {
+      font-size: .78rem;
+      color: #475569;
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      padding: 10px 12px;
+      line-height: 1.5;
+    }
+
+    /* ── STATS MINI ── */
+    .stats-row {
+      display: flex;
+      gap: 8px;
+    }
+    .stat-chip {
+      flex: 1;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 6px 8px;
+      text-align: center;
+    }
+    .stat-chip .stat-val {
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: var(--accent);
+      display: block;
+    }
+    .stat-chip .stat-lbl {
+      font-size: .68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    /* ── WORKSPACE ── */
+    .workspace {
+      padding: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: stretch;
+    }
+
+    /* ── RESULT CARD ── */
+    .result-card {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid #dde4ef;
+      overflow: hidden;
+    }
+    .result-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f8fafc;
+    }
+    .result-card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: .82rem;
+      font-weight: 800;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .result-card-title .badge {
+      background: var(--accent);
+      color: #fff;
+      border-radius: 6px;
+      padding: 2px 7px;
+      font-size: .7rem;
+      font-weight: 900;
+    }
+    .result-card-actions { display: flex; gap: 6px; }
+
+    .result-body {
+      padding: 18px 20px;
+      min-height: 80px;
+    }
+
+    /* ── DIFF VIEW ── */
+    .diff-text {
+      font-size: .95rem;
+      line-height: 1.7;
+      color: #0f172a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .diff-text .err {
+      background: #fee2e2;
+      color: #b91c1c;
+      border-radius: 3px;
+      padding: 1px 3px;
+      text-decoration: line-through;
+      font-weight: 600;
+    }
+    .diff-text .fix {
+      background: #dcfce7;
+      color: #15803d;
+      border-radius: 3px;
+      padding: 1px 3px;
+      font-weight: 600;
+    }
+
+    /* ── REFORMULATION ── */
+    .refo-text {
+      font-size: .95rem;
+      line-height: 1.7;
+      color: #0f172a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+    .empty-state .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: .4;
+    }
+    .empty-state h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; color: #475569; }
+    .empty-state p { font-size: .85rem; line-height: 1.5; }
+
+    /* ── LOADING SPINNER ── */
+    .spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+    .spinner-accent {
+      border-color: rgba(27,63,139,.2);
+      border-top-color: var(--accent);
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── CORRECTIONS LIST ── */
+    .corrections-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    .correction-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-radius: 9px;
+      padding: 9px 12px;
+      font-size: .84rem;
+    }
+    .correction-item .ci-arrow { color: var(--ok); font-weight: 900; flex-shrink: 0; margin-top: 1px; }
+    .correction-item .ci-before { color: var(--danger); font-weight: 700; }
+    .correction-item .ci-after { color: var(--ok); font-weight: 700; }
+    .correction-item .ci-reason { color: #78716c; font-size: .78rem; margin-top: 2px; }
+
+    /* ── REFO VARIANTS ── */
+    .refo-variants {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .refo-variant {
+      border: 1.5px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      position: relative;
+      background: #fff;
+      transition: border-color .15s;
+    }
+    .refo-variant:hover { border-color: var(--accent); }
+    .refo-variant .rv-num {
+      position: absolute;
+      top: -10px;
+      left: 12px;
+      background: var(--accent);
+      color: #fff;
+      font-size: .7rem;
+      font-weight: 900;
+      border-radius: 20px;
+      padding: 2px 9px;
+    }
+    .refo-variant .rv-text {
+      font-size: .9rem;
+      line-height: 1.65;
+      color: #0f172a;
+      padding-top: 4px;
+    }
+    .refo-variant .rv-copy {
+      margin-top: 8px;
+      background: transparent;
+      border: 1px solid #e2e8f0;
+      border-radius: 7px;
+      padding: 4px 10px;
+      font-size: .74rem;
+      font-weight: 700;
+      color: #64748b;
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .refo-variant .rv-copy:hover { border-color: var(--accent); color: var(--accent); background: #eef2ff; }
+
+    /* ── SCORE BADGE ── */
+    .score-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: .75rem;
+      font-weight: 800;
+    }
+    .score-ok { background: #dcfce7; color: #15803d; }
+    .score-warn { background: #fff7ed; color: #c2410c; }
+    .score-bad { background: #fee2e2; color: #b91c1c; }
+
+    /* ── TOAST ── */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: .84rem;
+      font-weight: 600;
+      box-shadow: 0 8px 24px rgba(0,0,0,.25);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all .25s;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    /* ── HISTORY ITEMS ── */
+    .history-list { display: flex; flex-direction: column; gap: 6px; }
+    .history-item {
+      background: #f8fafc;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 8px 10px;
+      cursor: pointer;
+      transition: border-color .12s;
+    }
+    .history-item:hover { border-color: var(--accent); background: #eef2ff; }
+    .history-item .hi-text {
+      font-size: .82rem;
+      color: #334155;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .history-item .hi-meta {
+      font-size: .72rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .conn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .conn-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #dbe4f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      font-size: .8rem;
+      color: #334155;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #94a3b8;
+      flex-shrink: 0;
+      box-shadow: 0 0 0 3px rgba(148,163,184,.16);
+    }
+    .status-dot.ok { background: #16a34a; box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
+    .status-dot.warn { background: #ea580c; box-shadow: 0 0 0 3px rgba(234,88,12,.15); }
+    .status-dot.bad { background: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
+    .mini-note {
+      margin-top: 8px;
+      font-size: .74rem;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    @media (max-width: 1100px) {
+      .conn-row { grid-template-columns: 1fr; }
+      .app { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; overflow: visible; }
+      .workspace { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>✏️ OrthoFix</h1>
+      <p>Correction orthographique &amp; reformulation</p>
+    </div>
+
+    <div class="sidebar-body">
+
+      <!-- Saisie texte -->
+      <div class="fieldset">
+        <div class="fieldset-legend">📝 Texte à analyser</div>
+        <div class="field">
+          <textarea id="inputText" placeholder="Saisissez ou collez votre texte ici…" rows="7"></textarea>
+        </div>
+        <div id="charCount" class="screen-note" style="font-size:.72rem; padding:6px 10px;">0 caractère · 0 mot</div>
+      </div>
+
+      <!-- Options -->
+      <div class="fieldset">
+        <div class="fieldset-legend">⚙️ Options</div>
+
+        <div class="field">
+          <label>Registre de reformulation</label>
+          <div class="tone-group" id="toneGroup">
+            <button class="tone-btn active" data-tone="neutre">Neutre</button>
+            <button class="tone-btn" data-tone="formel">Formel</button>
+            <button class="tone-btn" data-tone="professionnel">Professionnel</button>
+            <button class="tone-btn" data-tone="simplifié">Simplifié</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Nombre de reformulations</label>
+          <select id="refoCount">
+            <option value="1">1 proposition</option>
+            <option value="2" selected>2 propositions</option>
+            <option value="3">3 propositions</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Connexion locale -->
+      <div class="fieldset">
+        <div class="fieldset-legend">🖥 IA locale</div>
+
+        <div class="field">
+          <label for="ollamaUrl">URL Ollama</label>
+          <input id="ollamaUrl" type="text" value="http://localhost:11434" placeholder="http://localhost:11434" />
+        </div>
+
+        <div class="field">
+          <label for="ollamaModel">Modèle</label>
+          <input id="ollamaModel" type="text" value="gemma3:4b" placeholder="gemma3:4b ou qwen3.5:4b" />
+        </div>
+
+        <div class="conn-row">
+          <button class="btn btn-secondary btn-full" onclick="testOllamaConnection()">🔌 Tester la connexion</button>
+          <button class="btn btn-light btn-full" onclick="loadInstalledModels()">📦 Voir les modèles</button>
+        </div>
+
+        <div class="conn-status" id="connStatus">
+          <span class="status-dot" id="connDot"></span>
+          <span id="connText">Connexion non testée</span>
+        </div>
+        <div class="mini-note" id="modelHint">Exemple léger : <code>gemma3:4b</code> · Alternative plus puissante : <code>qwen3.5:4b</code></div>
+      </div>
+
+      <!-- Bouton principal -->
+      <button class="btn btn-primary btn-full" id="analyzeBtn" onclick="analyze()">
+        <span id="btnIcon">🔍</span>
+        <span id="btnLabel">Analyser le texte</span>
+      </button>
+
+      <button class="btn btn-light btn-full" onclick="clearAll()">🗑 Effacer tout</button>
+
+      <!-- Stats -->
+      <div class="fieldset" id="statsBlock" style="display:none">
+        <div class="fieldset-legend">📊 Résultats</div>
+        <div class="stats-row">
+          <div class="stat-chip">
+            <span class="stat-val" id="statErrors">—</span>
+            <span class="stat-lbl">Erreurs</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-val" id="statRefo">—</span>
+            <span class="stat-lbl">Reformulations</span>
+          </div>
+          <div class="stat-chip">
+            <span class="stat-val" id="statScore">—</span>
+            <span class="stat-lbl">Score</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Historique -->
+      <div class="fieldset" id="historyBlock" style="display:none">
+        <div class="fieldset-legend">🕐 Historique</div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+      <div class="screen-note">
+        ⚡ Propulsé par Ollama en local · Traitement sur votre machine
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- ═══════════ WORKSPACE ═══════════ -->
+  <main class="workspace" id="workspace">
+
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">✏️</div>
+      <h3>Prêt à analyser</h3>
+      <p>Saisissez un texte dans le panneau gauche<br>puis cliquez sur <strong>Analyser le texte</strong>.</p>
+    </div>
+
+    <!-- Carte : Texte corrigé -->
+    <div class="result-card" id="cardCorr" style="display:none">
+      <div class="result-card-header">
+        <div class="result-card-title">
+          <span>✅ Texte corrigé</span>
+          <span class="badge" id="badgeErrors">0 erreur</span>
+        </div>
+        <div class="result-card-actions">
+          <span id="scoreChip" class="score-badge score-ok">—</span>
+          <button class="btn btn-secondary" style="padding:5px 10px; font-size:.76rem;" onclick="copyResult('corrected')">📋 Copier</button>
+        </div>
+      </div>
+      <div class="result-body">
+        <div class="diff-text" id="correctedDiff"></div>
+        <div class="corrections-list" id="correctionsList"></div>
+      </div>
+    </div>
+
+    <!-- Carte : Reformulations -->
+    <div class="result-card" id="cardRefo" style="display:none">
+      <div class="result-card-header">
+        <div class="result-card-title">
+          <span>🔄 Reformulations</span>
+          <span class="badge" id="badgeTone">neutre</span>
+        </div>
+        <div class="result-card-actions">
+          <button class="btn btn-secondary" style="padding:5px 10px; font-size:.76rem;" onclick="copyResult('refo')">📋 Tout copier</button>
+        </div>
+      </div>
+      <div class="result-body">
+        <div class="refo-variants" id="refoVariants"></div>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+  // ─── État ───────────────────────────────────────────────
+  let selectedTone = 'neutre';
+  let history = [];
+  let lastCorrected = '';
+  let lastRefo = [];
+  let isLoading = false;
+
+  // ─── Tone selector ──────────────────────────────────────
+  document.querySelectorAll('.tone-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tone-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedTone = btn.dataset.tone;
+    });
+  });
+
+  // ─── Compteur caractères ────────────────────────────────
+  document.getElementById('inputText').addEventListener('input', updateCount);
+  function updateCount() {
+    const txt = document.getElementById('inputText').value;
+    const chars = txt.length;
+    const words = txt.trim() === '' ? 0 : txt.trim().split(/\s+/).length;
+    document.getElementById('charCount').textContent = `${chars} caractère${chars !== 1 ? 's' : ''} · ${words} mot${words !== 1 ? 's' : ''}`;
+  }
+
+
+  function setConnectionStatus(kind, message) {
+    const dot = document.getElementById('connDot');
+    const text = document.getElementById('connText');
+    dot.className = 'status-dot';
+    if (kind === 'ok') dot.classList.add('ok');
+    else if (kind === 'warn') dot.classList.add('warn');
+    else if (kind === 'bad') dot.classList.add('bad');
+    text.textContent = message;
+  }
+
+  async function fetchJsonSafe(url, options = {}) {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`HTTP ${response.status} - ${errText}`);
+    }
+    return response.json();
+  }
+
+  async function loadInstalledModels(silent = false) {
+    const baseUrl = (document.getElementById('ollamaUrl').value || 'http://localhost:11434').trim().replace(/\/$/, '');
+    const modelInput = document.getElementById('ollamaModel');
+    const hint = document.getElementById('modelHint');
+
+    try {
+      const data = await fetchJsonSafe(`${baseUrl}/api/tags`);
+      const models = Array.isArray(data.models) ? data.models.map(m => m.name).filter(Boolean) : [];
+
+      if (!models.length) {
+        hint.innerHTML = 'Aucun modèle installé détecté. Lancez par exemple <code>ollama run gemma3:4b</code> dans le terminal.';
+        if (!silent) showToast('⚠️ Aucun modèle installé trouvé.');
+        return [];
+      }
+
+      hint.innerHTML = `Modèles installés : ${models.map(m => `<code>${escHtml(m)}</code>`).join(' · ')}`;
+
+      if (!models.includes(modelInput.value.trim())) {
+        modelInput.value = models[0];
+      }
+
+      if (!silent) showToast(`✅ ${models.length} modèle${models.length > 1 ? 's' : ''} détecté${models.length > 1 ? 's' : ''}.`);
+      return models;
+    } catch (err) {
+      hint.innerHTML = 'Impossible de lire les modèles installés pour le moment.';
+      if (!silent) showToast('❌ Impossible de récupérer la liste des modèles.');
+      throw err;
+    }
+  }
+
+  async function testOllamaConnection() {
+    const baseUrl = (document.getElementById('ollamaUrl').value || 'http://localhost:11434').trim().replace(/\/$/, '');
+    const model = (document.getElementById('ollamaModel').value || '').trim();
+
+    setConnectionStatus('warn', 'Test en cours…');
+
+    try {
+      const versionData = await fetchJsonSafe(`${baseUrl}/api/version`);
+      const models = await loadInstalledModels(true).catch(() => []);
+
+      if (!model) {
+        setConnectionStatus('warn', `Ollama joignable${versionData.version ? ` (v${versionData.version})` : ''} · choisissez un modèle.`);
+        return;
+      }
+
+      if (models.length && !models.includes(model)) {
+        setConnectionStatus('warn', `Ollama joignable${versionData.version ? ` (v${versionData.version})` : ''} · modèle ${model} non installé.`);
+        return;
+      }
+
+      setConnectionStatus('ok', `Ollama joignable${versionData.version ? ` (v${versionData.version})` : ''} · modèle prêt : ${model || 'à choisir'}`);
+      showToast('✅ Connexion Ollama validée.');
+    } catch (err) {
+      console.error(err);
+      setConnectionStatus('bad', 'Connexion impossible. Vérifiez Ollama, l’URL et le serveur local.');
+      showToast('❌ Connexion Ollama impossible.');
+    }
+  }
+
+  // ─── Analyser ───────────────────────────────────────────
+  async function analyze() {
+    const text = document.getElementById('inputText').value.trim();
+    if (!text) { showToast('⚠️ Veuillez saisir un texte.'); return; }
+    if (isLoading) return;
+
+    const refoCount = parseInt(document.getElementById('refoCount').value);
+    const baseUrl = (document.getElementById('ollamaUrl').value || 'http://localhost:11434').trim().replace(/\/$/, '');
+    const model = (document.getElementById('ollamaModel').value || 'gemma3:4b').trim();
+
+    if (!model) { showToast('⚠️ Indiquez un modèle Ollama.'); return; }
+
+    setLoading(true);
+
+    const prompt = `Tu es un assistant expert en langue française.
+Réponds UNIQUEMENT en JSON valide, sans texte autour, sans markdown, sans backticks.
+
+Format JSON attendu :
+{
+  "corrected_text": "texte avec toutes les corrections orthographiques et grammaticales",
+  "corrections": [
+    { "before": "mot original", "after": "correction", "reason": "explication courte" }
+  ],
+  "score": 0,
+  "reformulations": [
+    "reformulation 1",
+    "reformulation 2"
+  ]
+}
+
+Règles :
+- Corrige l'orthographe, la grammaire, la ponctuation et les accords.
+- Génère exactement ${refoCount} reformulation(s) en registre "${selectedTone}".
+- Les reformulations doivent conserver le sens du texte original.
+- Si le texte n'a aucune erreur, retourne corrections:[] et score:100.
+- Le score doit être un entier entre 0 et 100.
+- Le tableau corrections doit rester court et utile.
+
+Texte à analyser :
+"""
+${text}
+"""`;
+
+    try {
+      const data = await fetchJsonSafe(`${baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          format: 'json',
+          stream: false,
+          options: {
+            temperature: 0.2
+          }
+        })
+      });
+      const raw = (data.response || '').trim();
+      if (!raw) throw new Error('Réponse vide du modèle');
+
+      const parsed = JSON.parse(raw);
+
+      if (!parsed.corrected_text || !Array.isArray(parsed.reformulations)) {
+        throw new Error('Format JSON inattendu');
+      }
+
+      renderResults(text, parsed, refoCount);
+      addToHistory(text, parsed);
+
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Erreur Ollama : vérifiez que le serveur tourne et que le modèle est téléchargé.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ─── Afficher résultats ─────────────────────────────────
+  function renderResults(original, data, refoCount) {
+    document.getElementById('emptyState').style.display = 'none';
+
+    const errCount = data.corrections?.length || 0;
+    const score = data.score ?? 100;
+
+    // ── Stats
+    document.getElementById('statsBlock').style.display = 'block';
+    document.getElementById('statErrors').textContent = errCount;
+    document.getElementById('statRefo').textContent = data.reformulations?.length || 0;
+    document.getElementById('statScore').textContent = score + '%';
+
+    // ── Carte correction
+    document.getElementById('cardCorr').style.display = 'block';
+    document.getElementById('badgeErrors').textContent = errCount === 0 ? 'Aucune erreur' : `${errCount} erreur${errCount > 1 ? 's' : ''}`;
+
+    // Score chip
+    const chip = document.getElementById('scoreChip');
+    chip.textContent = score + '/100';
+    chip.className = 'score-badge ' + (score >= 85 ? 'score-ok' : score >= 60 ? 'score-warn' : 'score-bad');
+
+    // Texte corrigé avec diff
+    lastCorrected = data.corrected_text || original;
+    renderDiff(original, data.corrections || [], data.corrected_text || original);
+
+    // Liste corrections
+    const list = document.getElementById('correctionsList');
+    list.innerHTML = '';
+    if (errCount === 0) {
+      list.innerHTML = '<div class="screen-note" style="margin-top:10px">✅ Aucune erreur détectée dans ce texte.</div>';
+    } else {
+      (data.corrections || []).forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'correction-item';
+        div.innerHTML = `
+          <span class="ci-arrow">→</span>
+          <div>
+            <span class="ci-before">${escHtml(c.before)}</span>
+            &nbsp;→&nbsp;
+            <span class="ci-after">${escHtml(c.after)}</span>
+            <div class="ci-reason">${escHtml(c.reason || '')}</div>
+          </div>`;
+        list.appendChild(div);
+      });
+    }
+
+    // ── Carte reformulations
+    lastRefo = data.reformulations || [];
+    document.getElementById('cardRefo').style.display = 'block';
+    document.getElementById('badgeTone').textContent = selectedTone;
+
+    const variants = document.getElementById('refoVariants');
+    variants.innerHTML = '';
+    lastRefo.forEach((r, i) => {
+      const div = document.createElement('div');
+      div.className = 'refo-variant';
+      div.innerHTML = `
+        <span class="rv-num">Proposition ${i + 1}</span>
+        <div class="rv-text">${escHtml(r)}</div>
+        <button class="rv-copy" onclick="copyText(${JSON.stringify(r)})">📋 Copier cette version</button>`;
+      variants.appendChild(div);
+    });
+  }
+
+  // ─── Diff visuel ────────────────────────────────────────
+  function renderDiff(original, corrections, corrected) {
+    const el = document.getElementById('correctedDiff');
+    if (!corrections.length) {
+      el.innerHTML = escHtml(corrected);
+      return;
+    }
+    // Afficher le texte corrigé avec les corrections mises en valeur
+    let display = escHtml(corrected);
+    corrections.forEach(c => {
+      const after = escHtml(c.after);
+      display = display.replace(
+        new RegExp(escRegex(after), 'g'),
+        `<span class="fix">${after}</span>`
+      );
+    });
+    el.innerHTML = display;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function escRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  // ─── Copier ─────────────────────────────────────────────
+  function copyResult(type) {
+    if (type === 'corrected') {
+      copyText(lastCorrected);
+    } else {
+      copyText(lastRefo.map((r, i) => `[${i + 1}] ${r}`).join('\n\n'));
+    }
+  }
+  function copyText(text) {
+    navigator.clipboard.writeText(text).then(() => showToast('✅ Copié dans le presse-papiers')).catch(() => {
+      // Fallback
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      showToast('✅ Copié dans le presse-papiers');
+    });
+  }
+
+  // ─── Historique ─────────────────────────────────────────
+  function addToHistory(text, data) {
+    history.unshift({ text, data, time: new Date() });
+    if (history.length > 8) history.pop();
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const block = document.getElementById('historyBlock');
+    const list = document.getElementById('historyList');
+    if (!history.length) { block.style.display = 'none'; return; }
+    block.style.display = 'block';
+    list.innerHTML = '';
+    history.forEach((item, i) => {
+      const div = document.createElement('div');
+      div.className = 'history-item';
+      const preview = item.text.length > 60 ? item.text.slice(0, 60) + '…' : item.text;
+      const t = item.time;
+      const hm = `${t.getHours().toString().padStart(2,'0')}:${t.getMinutes().toString().padStart(2,'0')}`;
+      div.innerHTML = `<div class="hi-text">${escHtml(preview)}</div><div class="hi-meta">${hm} · ${item.data.corrections?.length || 0} erreur(s)</div>`;
+      div.onclick = () => {
+        document.getElementById('inputText').value = item.text;
+        updateCount();
+        renderResults(item.text, item.data, item.data.reformulations?.length || 2);
+      };
+      list.appendChild(div);
+    });
+  }
+
+  // ─── Effacer ────────────────────────────────────────────
+  function clearAll() {
+    document.getElementById('inputText').value = '';
+    updateCount();
+    document.getElementById('emptyState').style.display = '';
+    document.getElementById('cardCorr').style.display = 'none';
+    document.getElementById('cardRefo').style.display = 'none';
+    document.getElementById('statsBlock').style.display = 'none';
+    lastCorrected = '';
+    lastRefo = [];
+  }
+
+  // ─── Loading ────────────────────────────────────────────
+  function setLoading(state) {
+    isLoading = state;
+    const btn = document.getElementById('analyzeBtn');
+    const icon = document.getElementById('btnIcon');
+    const label = document.getElementById('btnLabel');
+    if (state) {
+      btn.disabled = true;
+      icon.outerHTML = '<span id="btnIcon" class="spinner"></span>';
+      label.textContent = 'Analyse en cours…';
+    } else {
+      btn.disabled = false;
+      document.getElementById('btnIcon').outerHTML = '<span id="btnIcon">🔍</span>';
+      label.textContent = 'Analyser le texte';
+    }
+  }
+
+  // ─── Toast ──────────────────────────────────────────────
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+
+  // ─── Raccourci Ctrl+Entrée ──────────────────────────────
+  document.getElementById('inputText').addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyze();
+  });
+</script>
+</body>
+</html>
