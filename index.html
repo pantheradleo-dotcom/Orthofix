@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OrthoFix V2 — Correcteur & Reformulateur</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>✏️ OrthoFix</h1>
+      <p>Correction orthographique & reformulation locale</p>
+    </div>
+
+    <div class="sidebar-body">
+      <div class="fieldset">
+        <div class="fieldset-legend">📝 Texte à traiter</div>
+        <textarea id="inputText" placeholder="Saisissez ou collez votre texte ici…" rows="8"></textarea>
+        <div id="charCount" class="screen-note compact-note">0 caractère · 0 mot</div>
+      </div>
+
+      <div class="fieldset">
+        <div class="fieldset-legend">🎯 Action</div>
+        <div class="action-grid" id="actionGroup">
+          <button class="action-btn active" data-action="corriger">Corriger</button>
+          <button class="action-btn" data-action="corriger_reformuler">Corriger + reformuler</button>
+          <button class="action-btn" data-action="reecrire">Réécrire</button>
+        </div>
+
+        <div class="field">
+          <label>Registre</label>
+          <div class="tone-group" id="toneGroup">
+            <button class="tone-btn active" data-tone="neutre">Neutre</button>
+            <button class="tone-btn" data-tone="formel">Formel</button>
+            <button class="tone-btn" data-tone="professionnel">Professionnel</button>
+            <button class="tone-btn" data-tone="dynamique">Dynamique</button>
+            <button class="tone-btn" data-tone="simplifié">Simplifié</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="refoCount">Nombre de reformulations</label>
+          <select id="refoCount">
+            <option value="1">1 proposition</option>
+            <option value="2" selected>2 propositions</option>
+            <option value="3">3 propositions</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fieldset">
+        <div class="fieldset-legend">🖥 IA locale (Ollama)</div>
+        <div class="field">
+          <label for="ollamaUrl">URL Ollama</label>
+          <input id="ollamaUrl" type="text" value="http://localhost:11434" placeholder="http://localhost:11434" />
+        </div>
+        <div class="field">
+          <label for="ollamaModel">Modèle</label>
+          <input id="ollamaModel" type="text" value="gemma3:4b" placeholder="gemma3:4b" />
+        </div>
+
+        <div class="conn-row">
+          <button class="btn btn-secondary btn-full" id="testConnBtn">🔌 Tester la connexion</button>
+          <button class="btn btn-light btn-full" id="listModelsBtn">📦 Voir les modèles</button>
+        </div>
+
+        <div class="status-banner status-info" id="statusBanner">Prêt à tester la connexion.</div>
+        <div class="models-panel" id="modelsPanel" hidden>
+          <div class="models-panel-title">Modèles détectés</div>
+          <ul id="modelsList"></ul>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" id="runBtn">
+        <span id="runIcon">🚀</span>
+        <span id="runLabel">Lancer l'action</span>
+      </button>
+      <button class="btn btn-light btn-full" id="clearBtn">🗑 Effacer l'affichage</button>
+
+      <div class="fieldset" id="historyBlock">
+        <div class="fieldset-legend">🕐 Historique local</div>
+        <div class="history-actions">
+          <button class="btn btn-light" id="clearHistoryBtn">Vider tout</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+
+      <div class="screen-note">⚡ Fonctionne en local via Ollama. Les entrées d'historique restent dans votre navigateur.</div>
+    </div>
+  </aside>
+
+  <main class="workspace" id="workspace">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🧠</div>
+      <h3>Prêt à corriger ou reformuler</h3>
+      <p>Choisissez une action puis lancez le traitement.<br/>Essayez avec un exemple pour démarrer rapidement.</p>
+      <button class="btn btn-secondary" id="tryExampleBtn">Essayer un exemple</button>
+    </div>
+
+    <div class="result-card" id="resultCard" hidden>
+      <div class="result-card-header">
+        <div class="result-card-title">Résultat OrthoFix V2</div>
+        <div class="result-card-actions">
+          <span class="badge" id="resultMeta">—</span>
+        </div>
+      </div>
+
+      <div class="result-section">
+        <h4>Texte original</h4>
+        <div class="text-block" id="originalTextBlock"></div>
+        <div class="result-inline-actions">
+          <button class="btn btn-light" id="copyOriginalBtn">📋 Copier</button>
+          <button class="btn btn-light" id="reuseOriginalBtn">↩ Réutiliser ce texte</button>
+        </div>
+      </div>
+
+      <div class="result-section" id="correctedSection">
+        <h4>Texte corrigé</h4>
+        <div class="text-block" id="correctedTextBlock"></div>
+        <div class="result-inline-actions">
+          <button class="btn btn-light" id="copyCorrectedBtn">📋 Copier</button>
+          <button class="btn btn-light" id="reuseCorrectedBtn">↩ Remettre dans la saisie</button>
+        </div>
+      </div>
+
+      <div class="result-section" id="correctionsSection">
+        <h4>Corrections détectées</h4>
+        <div id="correctionsList"></div>
+      </div>
+
+      <div class="result-section" id="reformulationsSection">
+        <h4>Reformulations proposées</h4>
+        <div id="refoList"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
